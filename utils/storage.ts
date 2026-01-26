@@ -80,7 +80,7 @@ export const getGallery = async (): Promise<SavedPhoto[]> => {
   try {
     const { data, error } = await supabase
       .from('photos')
-      .select('id, storage_path, preview_path, created_at')
+      .select('id, storage_path, preview_path, image_data, created_at')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -90,53 +90,43 @@ export const getGallery = async (): Promise<SavedPhoto[]> => {
 
     if (!data) return [];
 
-    const photosWithUrls = await Promise.all(
-      data.map(async (photo) => {
-        let dataUrl = '';
-        let fullSizeUrl = '';
+    const photosWithUrls = data.map((photo) => {
+      let dataUrl = '';
+      let fullSizeUrl = '';
 
-        if (photo.preview_path && photo.storage_path) {
-          const previewFileName = photo.preview_path.replace('photos/', '');
-          const fullFileName = photo.storage_path.replace('photos/', '');
+      if (photo.preview_path && photo.storage_path) {
+        const previewFileName = photo.preview_path.replace('photos/', '');
+        const fullFileName = photo.storage_path.replace('photos/', '');
 
-          const previewUrlData = supabase.storage
-            .from('photos')
-            .getPublicUrl(previewFileName);
+        const previewUrlData = supabase.storage
+          .from('photos')
+          .getPublicUrl(previewFileName);
 
-          const fullUrlData = supabase.storage
-            .from('photos')
-            .getPublicUrl(fullFileName);
+        const fullUrlData = supabase.storage
+          .from('photos')
+          .getPublicUrl(fullFileName);
 
-          dataUrl = previewUrlData.data.publicUrl;
-          fullSizeUrl = fullUrlData.data.publicUrl;
-        } else if (photo.storage_path) {
-          const fileName = photo.storage_path.replace('photos/', '');
-          const { data: urlData } = supabase.storage
-            .from('photos')
-            .getPublicUrl(fileName);
-          dataUrl = urlData.publicUrl;
-          fullSizeUrl = urlData.publicUrl;
-        } else {
-          const { data: fullPhoto, error: fetchError } = await supabase
-            .from('photos')
-            .select('image_data')
-            .eq('id', photo.id)
-            .maybeSingle();
+        dataUrl = previewUrlData.data.publicUrl;
+        fullSizeUrl = fullUrlData.data.publicUrl;
+      } else if (photo.storage_path) {
+        const fileName = photo.storage_path.replace('photos/', '');
+        const { data: urlData } = supabase.storage
+          .from('photos')
+          .getPublicUrl(fileName);
+        dataUrl = urlData.publicUrl;
+        fullSizeUrl = urlData.publicUrl;
+      } else if (photo.image_data) {
+        dataUrl = photo.image_data;
+        fullSizeUrl = photo.image_data;
+      }
 
-          if (!fetchError && fullPhoto?.image_data) {
-            dataUrl = fullPhoto.image_data;
-            fullSizeUrl = fullPhoto.image_data;
-          }
-        }
-
-        return {
-          id: photo.id,
-          timestamp: new Date(photo.created_at).getTime(),
-          dataUrl,
-          fullSizeUrl
-        };
-      })
-    );
+      return {
+        id: photo.id,
+        timestamp: new Date(photo.created_at).getTime(),
+        dataUrl,
+        fullSizeUrl
+      };
+    });
 
     return photosWithUrls;
   } catch (e) {
