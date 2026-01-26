@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import { AppState, LayoutType } from './types';
 import LayoutSelection from './components/LayoutSelection';
@@ -21,9 +21,9 @@ const PhotoboothApp: React.FC = () => {
     setState(prev => ({ ...prev, layout, step: 'capture' }));
   };
 
-  const handleCaptureComplete = (photos: string[]) => {
+  const handleCaptureComplete = useCallback((photos: string[]) => {
     setState(prev => ({ ...prev, photos, step: 'editor' }));
-  };
+  }, []);
 
   const handleRestart = () => {
     setState({
