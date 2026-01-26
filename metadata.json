@@ -1,0 +1,7 @@
+{
+  "name": "Deep Blue Photobooth",
+  "description": "A premium, underwater-themed photobooth experience with custom sticker editing and high-quality layouts.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
