@@ -6,20 +6,52 @@ export interface SavedPhoto {
   dataUrl: string;
 }
 
+const dataUrlToBlob = (dataUrl: string): Blob => {
+  const arr = dataUrl.split(',');
+  const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new Blob([u8arr], { type: mime });
+};
+
 export const savePhotoToGallery = async (dataUrl: string): Promise<void> => {
   try {
-    const { error } = await supabase
+    const photoId = crypto.randomUUID();
+    const fileName = `${photoId}.jpg`;
+    const storagePath = `photos/${fileName}`;
+
+    const blob = dataUrlToBlob(dataUrl);
+
+    const { error: uploadError } = await supabase.storage
       .from('photos')
-      .insert({
-        image_data: dataUrl
+      .upload(fileName, blob, {
+        contentType: 'image/jpeg',
+        upsert: false
       });
 
-    if (error) {
-      console.error("Error saving photo to database:", error);
-      throw error;
+    if (uploadError) {
+      console.error("Error uploading photo to storage:", uploadError);
+      throw uploadError;
     }
 
-    console.log('Photo saved to database');
+    const { error: dbError } = await supabase
+      .from('photos')
+      .insert({
+        id: photoId,
+        storage_path: storagePath
+      });
+
+    if (dbError) {
+      console.error("Error saving photo metadata to database:", dbError);
+      await supabase.storage.from('photos').remove([fileName]);
+      throw dbError;
+    }
+
+    console.log('Photo saved to Supabase Storage');
   } catch (e) {
     console.error("Error saving photo:", e);
     throw e;
@@ -40,11 +72,24 @@ export const getGallery = async (): Promise<SavedPhoto[]> => {
 
     if (!data) return [];
 
-    return data.map(photo => ({
-      id: photo.id,
-      timestamp: new Date(photo.created_at).getTime(),
-      dataUrl: photo.image_data
-    }));
+    return data.map(photo => {
+      let dataUrl = '';
+
+      if (photo.storage_path) {
+        const { data: urlData } = supabase.storage
+          .from('photos')
+          .getPublicUrl(photo.storage_path.replace('photos/', ''));
+        dataUrl = urlData.publicUrl;
+      } else if (photo.image_data) {
+        dataUrl = photo.image_data;
+      }
+
+      return {
+        id: photo.id,
+        timestamp: new Date(photo.created_at).getTime(),
+        dataUrl
+      };
+    });
   } catch (e) {
     console.error("Error fetching gallery:", e);
     return [];
@@ -53,6 +98,19 @@ export const getGallery = async (): Promise<SavedPhoto[]> => {
 
 export const deletePhotoFromGallery = async (id: string): Promise<SavedPhoto[]> => {
   try {
+    const { data: photo } = await supabase
+      .from('photos')
+      .select('storage_path')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (photo?.storage_path) {
+      const fileName = photo.storage_path.replace('photos/', '');
+      await supabase.storage
+        .from('photos')
+        .remove([fileName]);
+    }
+
     const { error } = await supabase
       .from('photos')
       .delete()
@@ -71,6 +129,22 @@ export const deletePhotoFromGallery = async (id: string): Promise<SavedPhoto[]> 
 
 export const clearGallery = async (): Promise<void> => {
   try {
+    const { data: photos } = await supabase
+      .from('photos')
+      .select('storage_path');
+
+    if (photos) {
+      const filesToDelete = photos
+        .filter(p => p.storage_path)
+        .map(p => p.storage_path.replace('photos/', ''));
+
+      if (filesToDelete.length > 0) {
+        await supabase.storage
+          .from('photos')
+          .remove(filesToDelete);
+      }
+    }
+
     const { error } = await supabase
       .from('photos')
       .delete()
