@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { getGallery, deletePhotoFromGallery, clearGallery, SavedPhoto } from '../utils/storage';
+import { getGallery, deletePhotoFromGallery, clearGallery, SavedPhoto, GalleryResult } from '../utils/storage';
 import { ArrowLeft, Trash2, Download, Image as ImageIcon, Lock, Sticker as StickerIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { StickerUpload } from './StickerUpload';
 import { getCustomStickers, CustomSticker } from '../utils/stickerStorage';
@@ -17,13 +17,16 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
   const [customStickers, setCustomStickers] = useState<CustomSticker[]>([]);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [selectedPhoto, setSelectedPhoto] = useState<SavedPhoto | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalPhotos, setTotalPhotos] = useState(0);
 
   // Authentication Logic
   const handlePinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (pin === '1234') {
         setIsAuthenticated(true);
-        loadPhotos();
+        loadPhotos(1);
         loadCustomStickers();
     } else {
         alert('Incorrect PIN');
@@ -31,11 +34,14 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
     }
   };
 
-  const loadPhotos = async () => {
+  const loadPhotos = async (page: number = currentPage) => {
     setLoading(true);
     try {
-        const gallery = await getGallery();
-        setPhotos(gallery);
+        const result: GalleryResult = await getGallery(page, 30);
+        setPhotos(result.photos);
+        setCurrentPage(result.page);
+        setTotalPages(result.totalPages);
+        setTotalPhotos(result.total);
     } catch (e) {
         console.error(e);
     } finally {
@@ -50,13 +56,9 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
 
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this photo?')) {
-      const updated = await deletePhotoFromGallery(id);
-      setPhotos(updated);
-      if (currentPhotoIndex >= updated.length && updated.length > 0) {
-        setCurrentPhotoIndex(updated.length - 1);
-      } else if (updated.length === 0) {
-        setCurrentPhotoIndex(0);
-      }
+      await deletePhotoFromGallery(id);
+      await loadPhotos(currentPage);
+      setCurrentPhotoIndex(0);
     }
   };
 
@@ -64,6 +66,16 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
     if (confirm('WARNING: This will delete ALL photos. This cannot be undone.')) {
       await clearGallery();
       setPhotos([]);
+      setCurrentPhotoIndex(0);
+      setCurrentPage(1);
+      setTotalPages(0);
+      setTotalPhotos(0);
+    }
+  };
+
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      loadPhotos(page);
       setCurrentPhotoIndex(0);
     }
   };
@@ -157,9 +169,9 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
           <div className="flex items-center gap-2 md:gap-4 text-xs md:text-sm text-slate-400">
              {activeTab === 'photos' && (
                <>
-                 <span className="hidden sm:inline">{photos.length} Photos Stored</span>
-                 <span className="sm:hidden">{photos.length} Items</span>
-                 {photos.length > 0 && (
+                 <span className="hidden sm:inline">{totalPhotos} Photos Stored</span>
+                 <span className="sm:hidden">{totalPhotos} Items</span>
+                 {totalPhotos > 0 && (
                    <button
                       onClick={handleClearAll}
                       className="px-3 py-1.5 md:px-4 md:py-2 border border-red-500/50 text-red-400 rounded hover:bg-red-500/10 transition-colors flex items-center gap-2"
@@ -249,6 +261,46 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
                       </div>
                     ))}
                   </div>
+
+                  {totalPages > 1 && (
+                    <div className="mt-8 flex flex-col items-center gap-4 pb-4">
+                      <div className="flex items-center gap-4">
+                        <button
+                          onClick={() => goToPage(currentPage - 1)}
+                          disabled={currentPage === 1}
+                          className="p-2 rounded-lg bg-slate-900 border border-white/10 text-amber-200 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-800 transition-colors"
+                        >
+                          <ChevronLeft size={24} />
+                        </button>
+
+                        <div className="flex items-center gap-3">
+                          <span className="text-slate-400 text-sm whitespace-nowrap">
+                            Page {currentPage} of {totalPages}
+                          </span>
+                          <input
+                            type="range"
+                            min="1"
+                            max={totalPages}
+                            value={currentPage}
+                            onChange={(e) => goToPage(parseInt(e.target.value))}
+                            className="w-48 h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-200"
+                          />
+                        </div>
+
+                        <button
+                          onClick={() => goToPage(currentPage + 1)}
+                          disabled={currentPage === totalPages}
+                          className="p-2 rounded-lg bg-slate-900 border border-white/10 text-amber-200 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-800 transition-colors"
+                        >
+                          <ChevronRight size={24} />
+                        </button>
+                      </div>
+
+                      <div className="text-slate-500 text-xs">
+                        Showing {((currentPage - 1) * 30) + 1} - {Math.min(currentPage * 30, totalPhotos)} of {totalPhotos} photos
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {selectedPhoto && (

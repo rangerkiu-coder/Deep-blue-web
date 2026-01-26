@@ -76,19 +76,68 @@ export const savePhotoToGallery = async (dataUrl: string): Promise<void> => {
   }
 };
 
-export const getGallery = async (): Promise<SavedPhoto[]> => {
+export interface GalleryResult {
+  photos: SavedPhoto[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export const getTotalPhotoCount = async (): Promise<number> => {
   try {
-    const { data, error } = await supabase
+    const { count, error } = await supabase
       .from('photos')
-      .select('id, storage_path, preview_path, created_at')
-      .order('created_at', { ascending: false });
+      .select('*', { count: 'exact', head: true });
+
+    if (error) {
+      console.error("Error getting photo count:", error);
+      return 0;
+    }
+
+    return count || 0;
+  } catch (e) {
+    console.error("Error getting photo count:", e);
+    return 0;
+  }
+};
+
+export const getGallery = async (page: number = 1, pageSize: number = 30): Promise<GalleryResult> => {
+  try {
+    const offset = (page - 1) * pageSize;
+
+    const [countResult, photosResult] = await Promise.all([
+      getTotalPhotoCount(),
+      supabase
+        .from('photos')
+        .select('id, storage_path, preview_path, created_at')
+        .order('created_at', { ascending: false })
+        .range(offset, offset + pageSize - 1)
+    ]);
+
+    const total = countResult;
+    const { data, error } = photosResult;
 
     if (error) {
       console.error("Error fetching gallery:", error);
-      return [];
+      return {
+        photos: [],
+        total: 0,
+        page,
+        pageSize,
+        totalPages: 0
+      };
     }
 
-    if (!data) return [];
+    if (!data) {
+      return {
+        photos: [],
+        total,
+        page,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize)
+      };
+    }
 
     const legacyPhotoIds = data
       .filter(photo => !photo.storage_path && !photo.preview_path)
@@ -150,14 +199,26 @@ export const getGallery = async (): Promise<SavedPhoto[]> => {
       };
     });
 
-    return photosWithUrls;
+    return {
+      photos: photosWithUrls,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize)
+    };
   } catch (e) {
     console.error("Error fetching gallery:", e);
-    return [];
+    return {
+      photos: [],
+      total: 0,
+      page,
+      pageSize,
+      totalPages: 0
+    };
   }
 };
 
-export const deletePhotoFromGallery = async (id: string): Promise<SavedPhoto[]> => {
+export const deletePhotoFromGallery = async (id: string): Promise<void> => {
   try {
     const { data: photo } = await supabase
       .from('photos')
@@ -187,11 +248,8 @@ export const deletePhotoFromGallery = async (id: string): Promise<SavedPhoto[]> 
     if (error) {
       console.error("Error deleting photo:", error);
     }
-
-    return await getGallery();
   } catch (e) {
     console.error("Error deleting photo:", e);
-    return [];
   }
 };
 
