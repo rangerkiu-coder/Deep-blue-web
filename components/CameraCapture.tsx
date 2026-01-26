@@ -23,7 +23,13 @@ const CameraCapture: React.FC<Props> = ({ layout, onComplete }) => {
     const startCamera = async () => {
       try {
         const mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1920 }, height: { ideal: 1080 }, facingMode: 'user' },
+          video: {
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            facingMode: 'user',
+            focusMode: 'continuous',
+            focusDistance: { ideal: 0 }
+          } as MediaTrackConstraints,
           audio: false
         });
         setStream(mediaStream);
