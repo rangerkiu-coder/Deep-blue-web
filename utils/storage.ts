@@ -62,7 +62,7 @@ export const getGallery = async (): Promise<SavedPhoto[]> => {
   try {
     const { data, error } = await supabase
       .from('photos')
-      .select('*')
+      .select('id, storage_path, created_at')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -72,26 +72,37 @@ export const getGallery = async (): Promise<SavedPhoto[]> => {
 
     if (!data) return [];
 
-    return data.map(photo => {
-      let dataUrl = '';
+    const photosWithUrls = await Promise.all(
+      data.map(async (photo) => {
+        let dataUrl = '';
 
-      if (photo.storage_path) {
-        const fileName = photo.storage_path.replace('photos/', '');
-        const { data: urlData } = supabase.storage
-          .from('photos')
-          .getPublicUrl(fileName);
-        dataUrl = urlData.publicUrl;
-        console.log('Generated public URL:', dataUrl, 'for file:', fileName);
-      } else if (photo.image_data) {
-        dataUrl = photo.image_data;
-      }
+        if (photo.storage_path) {
+          const fileName = photo.storage_path.replace('photos/', '');
+          const { data: urlData } = supabase.storage
+            .from('photos')
+            .getPublicUrl(fileName);
+          dataUrl = urlData.publicUrl;
+        } else {
+          const { data: fullPhoto, error: fetchError } = await supabase
+            .from('photos')
+            .select('image_data')
+            .eq('id', photo.id)
+            .maybeSingle();
 
-      return {
-        id: photo.id,
-        timestamp: new Date(photo.created_at).getTime(),
-        dataUrl
-      };
-    });
+          if (!fetchError && fullPhoto?.image_data) {
+            dataUrl = fullPhoto.image_data;
+          }
+        }
+
+        return {
+          id: photo.id,
+          timestamp: new Date(photo.created_at).getTime(),
+          dataUrl
+        };
+      })
+    );
+
+    return photosWithUrls;
   } catch (e) {
     console.error("Error fetching gallery:", e);
     return [];
