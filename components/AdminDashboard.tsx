@@ -173,8 +173,7 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
                  <span className="sm:hidden">{totalPhotos} Items</span>
                  <button
                     onClick={handleClearAll}
-                    disabled={totalPhotos === 0}
-                    className="px-3 py-1.5 md:px-4 md:py-2 border border-red-500/50 text-red-400 rounded hover:bg-red-500/10 transition-colors flex items-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="px-3 py-1.5 md:px-4 md:py-2 bg-red-500/20 border-2 border-red-500 text-red-300 font-semibold rounded hover:bg-red-500/30 hover:border-red-400 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
                  >
                     <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" /> <span>Clear All</span>
                  </button>
