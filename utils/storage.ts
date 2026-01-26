@@ -80,7 +80,7 @@ export const getGallery = async (): Promise<SavedPhoto[]> => {
   try {
     const { data, error } = await supabase
       .from('photos')
-      .select('id, storage_path, preview_path, image_data, created_at')
+      .select('id, storage_path, preview_path, created_at')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -89,6 +89,28 @@ export const getGallery = async (): Promise<SavedPhoto[]> => {
     }
 
     if (!data) return [];
+
+    const legacyPhotoIds = data
+      .filter(photo => !photo.storage_path && !photo.preview_path)
+      .map(photo => photo.id);
+
+    let legacyPhotosData: { [key: string]: string } = {};
+
+    if (legacyPhotoIds.length > 0) {
+      const { data: legacyData, error: legacyError } = await supabase
+        .from('photos')
+        .select('id, image_data')
+        .in('id', legacyPhotoIds);
+
+      if (!legacyError && legacyData) {
+        legacyPhotosData = legacyData.reduce((acc, photo) => {
+          if (photo.image_data) {
+            acc[photo.id] = photo.image_data;
+          }
+          return acc;
+        }, {} as { [key: string]: string });
+      }
+    }
 
     const photosWithUrls = data.map((photo) => {
       let dataUrl = '';
@@ -115,9 +137,9 @@ export const getGallery = async (): Promise<SavedPhoto[]> => {
           .getPublicUrl(fileName);
         dataUrl = urlData.publicUrl;
         fullSizeUrl = urlData.publicUrl;
-      } else if (photo.image_data) {
-        dataUrl = photo.image_data;
-        fullSizeUrl = photo.image_data;
+      } else if (legacyPhotosData[photo.id]) {
+        dataUrl = legacyPhotosData[photo.id];
+        fullSizeUrl = legacyPhotosData[photo.id];
       }
 
       return {
