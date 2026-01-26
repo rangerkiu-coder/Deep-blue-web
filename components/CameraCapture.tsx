@@ -15,6 +15,8 @@ const CameraCapture: React.FC<Props> = ({ layout, onComplete }) => {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [isFlashing, setIsFlashing] = useState(false);
   const [error, setError] = useState<string>('');
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isCapturingRef = useRef(false);
 
   const targetCount = LAYOUT_CONFIG[layout].photoCount;
   const targetAspect = layout === 'postcard' ? 16 / 9 : 4 / 3;
@@ -47,67 +49,85 @@ const CameraCapture: React.FC<Props> = ({ layout, onComplete }) => {
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
     };
   }, []);
 
+  const capturePhoto = useCallback(() => {
+    if (videoRef.current && canvasRef.current && !isCapturingRef.current) {
+      isCapturingRef.current = true;
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const context = canvas.getContext('2d');
+
+      if (context) {
+        const videoAspect = video.videoWidth / video.videoHeight;
+        let sWidth = video.videoWidth;
+        let sHeight = video.videoHeight;
+        let sx = 0;
+        let sy = 0;
+
+        if (videoAspect > targetAspect) {
+          sWidth = video.videoHeight * targetAspect;
+          sx = (video.videoWidth - sWidth) / 2;
+        } else {
+          sHeight = video.videoWidth / targetAspect;
+          sy = (video.videoHeight - sHeight) / 2;
+        }
+
+        canvas.width = targetAspect > 1.5 ? 1280 : 960;
+        canvas.height = canvas.width / targetAspect;
+
+        context.translate(canvas.width, 0);
+        context.scale(-1, 1);
+        context.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
+
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+
+        setIsFlashing(true);
+        setTimeout(() => setIsFlashing(false), 200);
+
+        setCapturedPhotos(prev => {
+          const newPhotos = [...prev, dataUrl];
+          isCapturingRef.current = false;
+
+          if (newPhotos.length >= targetCount) {
+            setTimeout(() => onComplete(newPhotos), 1000);
+          } else {
+            setTimeout(() => startCountdown(), 1500);
+          }
+          return newPhotos;
+        });
+      } else {
+        isCapturingRef.current = false;
+      }
+    }
+  }, [targetAspect, targetCount, onComplete]);
+
   const startCountdown = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+
     let count = 3;
     setCountdown(count);
-    const interval = setInterval(() => {
+
+    intervalRef.current = setInterval(() => {
       count--;
       if (count === 0) {
-        clearInterval(interval);
-        setCountdown(null);
-
-        // Capture the photo after countdown completes
-        if (videoRef.current && canvasRef.current) {
-          const video = videoRef.current;
-          const canvas = canvasRef.current;
-          const context = canvas.getContext('2d');
-
-          if (context) {
-            const videoAspect = video.videoWidth / video.videoHeight;
-            let sWidth = video.videoWidth;
-            let sHeight = video.videoHeight;
-            let sx = 0;
-            let sy = 0;
-
-            if (videoAspect > targetAspect) {
-              sWidth = video.videoHeight * targetAspect;
-              sx = (video.videoWidth - sWidth) / 2;
-            } else {
-              sHeight = video.videoWidth / targetAspect;
-              sy = (video.videoHeight - sHeight) / 2;
-            }
-
-            canvas.width = targetAspect > 1.5 ? 1280 : 960;
-            canvas.height = canvas.width / targetAspect;
-
-            context.translate(canvas.width, 0);
-            context.scale(-1, 1);
-            context.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
-
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
-
-            setIsFlashing(true);
-            setTimeout(() => setIsFlashing(false), 200);
-
-            setCapturedPhotos(prev => {
-              const newPhotos = [...prev, dataUrl];
-              if (newPhotos.length >= targetCount) {
-                setTimeout(() => onComplete(newPhotos), 1000);
-              } else {
-                setTimeout(() => startCountdown(), 1500);
-              }
-              return newPhotos;
-            });
-          }
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
         }
+        setCountdown(null);
+        setTimeout(() => capturePhoto(), 100);
       } else {
         setCountdown(count);
       }
     }, 1000);
-  }, [targetCount, targetAspect, onComplete]);
+  }, [capturePhoto]);
 
   const handleStartSession = () => {
     startCountdown();
