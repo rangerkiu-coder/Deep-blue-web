@@ -1,9 +1,11 @@
 import { supabase } from './supabase';
+import { compressImage } from './imageCompression';
 
 export interface SavedPhoto {
   id: string;
   timestamp: number;
   dataUrl: string;
+  fullSizeUrl?: string;
 }
 
 const dataUrlToBlob = (dataUrl: string): Blob => {
@@ -21,37 +23,53 @@ const dataUrlToBlob = (dataUrl: string): Blob => {
 export const savePhotoToGallery = async (dataUrl: string): Promise<void> => {
   try {
     const photoId = crypto.randomUUID();
-    const fileName = `${photoId}.jpg`;
-    const storagePath = `photos/${fileName}`;
+    const fullFileName = `${photoId}-full.jpg`;
+    const previewFileName = `${photoId}-preview.jpg`;
+    const fullStoragePath = `photos/${fullFileName}`;
+    const previewStoragePath = `photos/${previewFileName}`;
 
-    const blob = dataUrlToBlob(dataUrl);
+    const compressedPreview = await compressImage(dataUrl, 800, 0.7);
 
-    const { error: uploadError } = await supabase.storage
-      .from('photos')
-      .upload(fileName, blob, {
+    const fullBlob = dataUrlToBlob(dataUrl);
+    const previewBlob = dataUrlToBlob(compressedPreview);
+
+    const [fullUpload, previewUpload] = await Promise.all([
+      supabase.storage.from('photos').upload(fullFileName, fullBlob, {
         contentType: 'image/jpeg',
         upsert: false
-      });
+      }),
+      supabase.storage.from('photos').upload(previewFileName, previewBlob, {
+        contentType: 'image/jpeg',
+        upsert: false
+      })
+    ]);
 
-    if (uploadError) {
-      console.error("Error uploading photo to storage:", uploadError);
-      throw uploadError;
+    if (fullUpload.error) {
+      console.error("Error uploading full photo:", fullUpload.error);
+      throw fullUpload.error;
+    }
+
+    if (previewUpload.error) {
+      console.error("Error uploading preview:", previewUpload.error);
+      await supabase.storage.from('photos').remove([fullFileName]);
+      throw previewUpload.error;
     }
 
     const { error: dbError } = await supabase
       .from('photos')
       .insert({
         id: photoId,
-        storage_path: storagePath
+        storage_path: fullStoragePath,
+        preview_path: previewStoragePath
       });
 
     if (dbError) {
       console.error("Error saving photo metadata to database:", dbError);
-      await supabase.storage.from('photos').remove([fileName]);
+      await supabase.storage.from('photos').remove([fullFileName, previewFileName]);
       throw dbError;
     }
 
-    console.log('Photo saved to Supabase Storage');
+    console.log('Photo and preview saved to Supabase Storage');
   } catch (e) {
     console.error("Error saving photo:", e);
     throw e;
@@ -62,7 +80,7 @@ export const getGallery = async (): Promise<SavedPhoto[]> => {
   try {
     const { data, error } = await supabase
       .from('photos')
-      .select('id, storage_path, created_at')
+      .select('id, storage_path, preview_path, created_at')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -75,13 +93,29 @@ export const getGallery = async (): Promise<SavedPhoto[]> => {
     const photosWithUrls = await Promise.all(
       data.map(async (photo) => {
         let dataUrl = '';
+        let fullSizeUrl = '';
 
-        if (photo.storage_path) {
+        if (photo.preview_path && photo.storage_path) {
+          const previewFileName = photo.preview_path.replace('photos/', '');
+          const fullFileName = photo.storage_path.replace('photos/', '');
+
+          const previewUrlData = supabase.storage
+            .from('photos')
+            .getPublicUrl(previewFileName);
+
+          const fullUrlData = supabase.storage
+            .from('photos')
+            .getPublicUrl(fullFileName);
+
+          dataUrl = previewUrlData.data.publicUrl;
+          fullSizeUrl = fullUrlData.data.publicUrl;
+        } else if (photo.storage_path) {
           const fileName = photo.storage_path.replace('photos/', '');
           const { data: urlData } = supabase.storage
             .from('photos')
             .getPublicUrl(fileName);
           dataUrl = urlData.publicUrl;
+          fullSizeUrl = urlData.publicUrl;
         } else {
           const { data: fullPhoto, error: fetchError } = await supabase
             .from('photos')
@@ -91,13 +125,15 @@ export const getGallery = async (): Promise<SavedPhoto[]> => {
 
           if (!fetchError && fullPhoto?.image_data) {
             dataUrl = fullPhoto.image_data;
+            fullSizeUrl = fullPhoto.image_data;
           }
         }
 
         return {
           id: photo.id,
           timestamp: new Date(photo.created_at).getTime(),
-          dataUrl
+          dataUrl,
+          fullSizeUrl
         };
       })
     );
@@ -113,15 +149,22 @@ export const deletePhotoFromGallery = async (id: string): Promise<SavedPhoto[]> 
   try {
     const { data: photo } = await supabase
       .from('photos')
-      .select('storage_path')
+      .select('storage_path, preview_path')
       .eq('id', id)
       .maybeSingle();
 
-    if (photo?.storage_path) {
-      const fileName = photo.storage_path.replace('photos/', '');
-      await supabase.storage
-        .from('photos')
-        .remove([fileName]);
+    if (photo) {
+      const filesToDelete = [];
+      if (photo.storage_path) {
+        filesToDelete.push(photo.storage_path.replace('photos/', ''));
+      }
+      if (photo.preview_path) {
+        filesToDelete.push(photo.preview_path.replace('photos/', ''));
+      }
+
+      if (filesToDelete.length > 0) {
+        await supabase.storage.from('photos').remove(filesToDelete);
+      }
     }
 
     const { error } = await supabase
@@ -144,12 +187,14 @@ export const clearGallery = async (): Promise<void> => {
   try {
     const { data: photos } = await supabase
       .from('photos')
-      .select('storage_path');
+      .select('storage_path, preview_path');
 
     if (photos) {
-      const filesToDelete = photos
-        .filter(p => p.storage_path)
-        .map(p => p.storage_path.replace('photos/', ''));
+      const filesToDelete: string[] = [];
+      photos.forEach(p => {
+        if (p.storage_path) filesToDelete.push(p.storage_path.replace('photos/', ''));
+        if (p.preview_path) filesToDelete.push(p.preview_path.replace('photos/', ''));
+      });
 
       if (filesToDelete.length > 0) {
         await supabase.storage
