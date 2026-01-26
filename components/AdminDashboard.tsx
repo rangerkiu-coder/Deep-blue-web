@@ -68,21 +68,51 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
     }
   };
 
-  const handleDownload = (photo: SavedPhoto) => {
-    const link = document.createElement('a');
-    link.href = photo.fullSizeUrl || photo.dataUrl;
-    link.download = `deep-blue-archive-${photo.id}.jpg`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownload = async (photo: SavedPhoto) => {
+    try {
+      const downloadUrl = photo.fullSizeUrl || photo.dataUrl;
+
+      if (downloadUrl.startsWith('data:')) {
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = `deep-blue-archive-${photo.id}.jpg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        const response = await fetch(downloadUrl);
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `deep-blue-archive-${photo.id}.jpg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error('Download failed:', error);
+      alert('Failed to download photo');
+    }
   };
 
+  const getValidPhotos = () => photos.filter(p => p.dataUrl);
+
   const goToPrevPhoto = () => {
-    setCurrentPhotoIndex((prev) => (prev > 0 ? prev - 1 : photos.length - 1));
+    const validPhotos = getValidPhotos();
+    const currentIdx = validPhotos.findIndex(p => p.id === selectedPhoto?.id);
+    const newIdx = currentIdx > 0 ? currentIdx - 1 : validPhotos.length - 1;
+    setSelectedPhoto(validPhotos[newIdx]);
+    setCurrentPhotoIndex(photos.indexOf(validPhotos[newIdx]));
   };
 
   const goToNextPhoto = () => {
-    setCurrentPhotoIndex((prev) => (prev < photos.length - 1 ? prev + 1 : 0));
+    const validPhotos = getValidPhotos();
+    const currentIdx = validPhotos.findIndex(p => p.id === selectedPhoto?.id);
+    const newIdx = currentIdx < validPhotos.length - 1 ? currentIdx + 1 : 0;
+    setSelectedPhoto(validPhotos[newIdx]);
+    setCurrentPhotoIndex(photos.indexOf(validPhotos[newIdx]));
   };
 
   if (!isAuthenticated) {
@@ -137,8 +167,8 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
           <div className="flex items-center gap-2 md:gap-4 text-xs md:text-sm text-slate-400">
              {activeTab === 'photos' && (
                <>
-                 <span className="hidden sm:inline">{photos.length} Photos Stored</span>
-                 <span className="sm:hidden">{photos.length} Items</span>
+                 <span className="hidden sm:inline">{photos.filter(p => p.dataUrl).length} Photos Stored</span>
+                 <span className="sm:hidden">{photos.filter(p => p.dataUrl).length} Items</span>
                  {photos.length > 0 && (
                    <button
                       onClick={handleClearAll}
@@ -202,19 +232,26 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
               <>
                 <div className="flex-1 overflow-y-auto p-4 md:p-6">
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                    {photos.map((photo, index) => (
+                    {photos.filter(p => p.dataUrl).map((photo, index) => (
                       <div
                         key={photo.id}
                         className="group relative aspect-[2/3] bg-slate-900 rounded-lg overflow-hidden border border-white/10 hover:border-amber-200/50 transition-all cursor-pointer shadow-lg hover:shadow-2xl hover:scale-[1.02]"
                         onClick={() => {
                           setSelectedPhoto(photo);
-                          setCurrentPhotoIndex(index);
+                          setCurrentPhotoIndex(photos.indexOf(photo));
                         }}
                       >
                         <img
                           src={photo.dataUrl}
                           alt={`Photo ${index + 1}`}
                           className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            const parent = e.currentTarget.parentElement;
+                            if (parent) {
+                              parent.style.display = 'none';
+                            }
+                          }}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
                           <div className="absolute bottom-0 left-0 right-0 p-3 text-xs">
@@ -242,12 +279,12 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
                       </svg>
                     </button>
 
-                    <div className="relative w-full max-w-5xl" onClick={(e) => e.stopPropagation()}>
+                    <div className="relative w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
                       <div className="relative bg-slate-900 rounded-lg overflow-hidden border border-white/20 shadow-2xl">
-                        <div className="aspect-[2/3] w-full relative">
+                        <div className="aspect-[2/3] w-full relative max-h-[70vh]">
                           <img
-                            src={selectedPhoto.fullSizeUrl || selectedPhoto.dataUrl}
-                            alt="Full size"
+                            src={selectedPhoto.dataUrl}
+                            alt="Photo"
                             className="w-full h-full object-contain bg-slate-950"
                           />
                         </div>
@@ -261,7 +298,7 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
                               </div>
                             </div>
                             <div className="text-amber-200 font-serif text-sm">
-                              {currentPhotoIndex + 1} / {photos.length}
+                              {getValidPhotos().findIndex(p => p.id === selectedPhoto.id) + 1} / {getValidPhotos().length}
                             </div>
                           </div>
 
@@ -285,22 +322,16 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
                         </div>
                       </div>
 
-                      {photos.length > 1 && (
+                      {getValidPhotos().length > 1 && (
                         <>
                           <button
-                            onClick={() => {
-                              goToPrevPhoto();
-                              setSelectedPhoto(photos[(currentPhotoIndex > 0 ? currentPhotoIndex - 1 : photos.length - 1)]);
-                            }}
+                            onClick={goToPrevPhoto}
                             className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 md:-translate-x-16 bg-slate-900 hover:bg-slate-800 text-amber-200 p-3 md:p-4 rounded-full border border-white/10 shadow-lg transition-all"
                           >
                             <ChevronLeft size={24} />
                           </button>
                           <button
-                            onClick={() => {
-                              goToNextPhoto();
-                              setSelectedPhoto(photos[(currentPhotoIndex < photos.length - 1 ? currentPhotoIndex + 1 : 0)]);
-                            }}
+                            onClick={goToNextPhoto}
                             className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 md:translate-x-16 bg-slate-900 hover:bg-slate-800 text-amber-200 p-3 md:p-4 rounded-full border border-white/10 shadow-lg transition-all"
                           >
                             <ChevronRight size={24} />
@@ -309,25 +340,25 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
                       )}
                     </div>
 
-                    {photos.length > 1 && (
+                    {getValidPhotos().length > 1 && (
                       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 overflow-x-auto max-w-full px-4">
-                        {photos.map((photo, index) => (
+                        {getValidPhotos().map((photo) => (
                           <button
                             key={photo.id}
                             onClick={(e) => {
                               e.stopPropagation();
-                              setCurrentPhotoIndex(index);
                               setSelectedPhoto(photo);
+                              setCurrentPhotoIndex(photos.indexOf(photo));
                             }}
                             className={`flex-shrink-0 w-12 h-16 md:w-16 md:h-24 rounded border-2 transition-all overflow-hidden ${
-                              index === currentPhotoIndex
+                              photo.id === selectedPhoto?.id
                                 ? 'border-amber-200 opacity-100 scale-110'
                                 : 'border-white/30 opacity-50 hover:opacity-75'
                             }`}
                           >
                             <img
                               src={photo.dataUrl}
-                              alt={`Thumbnail ${index + 1}`}
+                              alt={`Thumbnail`}
                               className="w-full h-full object-cover"
                             />
                           </button>
