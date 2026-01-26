@@ -187,11 +187,24 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
                 {photos.map((photo) => (
                   <div key={photo.id} className="group relative bg-slate-900 rounded-lg overflow-hidden border border-white/5 shadow-lg">
                     <div className="aspect-[2/3] w-full relative">
-                      <img
-                        src={photo.dataUrl}
-                        alt="Archive"
-                        className="w-full h-full object-cover"
-                      />
+                      {photo.dataUrl ? (
+                        <img
+                          src={photo.dataUrl}
+                          alt="Archive"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            console.error('Failed to load image:', photo.dataUrl);
+                            e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="300" viewBox="0 0 200 300"%3E%3Crect fill="%23374151" width="200" height="300"/%3E%3Ctext x="50%25" y="50%25" font-family="Arial" font-size="14" fill="%23fff" text-anchor="middle" dominant-baseline="middle"%3EImage Not Found%3C/text%3E%3C/svg%3E';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-slate-800 text-slate-500">
+                          <div className="text-center">
+                            <ImageIcon size={32} className="mx-auto mb-2" />
+                            <p className="text-xs">No image</p>
+                          </div>
+                        </div>
+                      )}
                       {/* Overlay Actions */}
                       <div className="absolute inset-0 bg-slate-950/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3 px-2">
                         <button

@@ -76,10 +76,12 @@ export const getGallery = async (): Promise<SavedPhoto[]> => {
       let dataUrl = '';
 
       if (photo.storage_path) {
+        const fileName = photo.storage_path.replace('photos/', '');
         const { data: urlData } = supabase.storage
           .from('photos')
-          .getPublicUrl(photo.storage_path.replace('photos/', ''));
+          .getPublicUrl(fileName);
         dataUrl = urlData.publicUrl;
+        console.log('Generated public URL:', dataUrl, 'for file:', fileName);
       } else if (photo.image_data) {
         dataUrl = photo.image_data;
       }
