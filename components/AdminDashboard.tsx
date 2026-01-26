@@ -97,22 +97,12 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
     }
   };
 
-  const getValidPhotos = () => photos.filter(p => p.dataUrl);
-
   const goToPrevPhoto = () => {
-    const validPhotos = getValidPhotos();
-    const currentIdx = validPhotos.findIndex(p => p.id === selectedPhoto?.id);
-    const newIdx = currentIdx > 0 ? currentIdx - 1 : validPhotos.length - 1;
-    setSelectedPhoto(validPhotos[newIdx]);
-    setCurrentPhotoIndex(photos.indexOf(validPhotos[newIdx]));
+    setCurrentPhotoIndex((prev) => (prev > 0 ? prev - 1 : photos.length - 1));
   };
 
   const goToNextPhoto = () => {
-    const validPhotos = getValidPhotos();
-    const currentIdx = validPhotos.findIndex(p => p.id === selectedPhoto?.id);
-    const newIdx = currentIdx < validPhotos.length - 1 ? currentIdx + 1 : 0;
-    setSelectedPhoto(validPhotos[newIdx]);
-    setCurrentPhotoIndex(photos.indexOf(validPhotos[newIdx]));
+    setCurrentPhotoIndex((prev) => (prev < photos.length - 1 ? prev + 1 : 0));
   };
 
   if (!isAuthenticated) {
@@ -167,8 +157,8 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
           <div className="flex items-center gap-2 md:gap-4 text-xs md:text-sm text-slate-400">
              {activeTab === 'photos' && (
                <>
-                 <span className="hidden sm:inline">{photos.filter(p => p.dataUrl).length} Photos Stored</span>
-                 <span className="sm:hidden">{photos.filter(p => p.dataUrl).length} Items</span>
+                 <span className="hidden sm:inline">{photos.length} Photos Stored</span>
+                 <span className="sm:hidden">{photos.length} Items</span>
                  {photos.length > 0 && (
                    <button
                       onClick={handleClearAll}
@@ -232,26 +222,19 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
               <>
                 <div className="flex-1 overflow-y-auto p-4 md:p-6">
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                    {photos.filter(p => p.dataUrl).map((photo, index) => (
+                    {photos.map((photo, index) => (
                       <div
                         key={photo.id}
                         className="group relative aspect-[2/3] bg-slate-900 rounded-lg overflow-hidden border border-white/10 hover:border-amber-200/50 transition-all cursor-pointer shadow-lg hover:shadow-2xl hover:scale-[1.02]"
                         onClick={() => {
                           setSelectedPhoto(photo);
-                          setCurrentPhotoIndex(photos.indexOf(photo));
+                          setCurrentPhotoIndex(index);
                         }}
                       >
                         <img
                           src={photo.dataUrl}
                           alt={`Photo ${index + 1}`}
                           className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                            const parent = e.currentTarget.parentElement;
-                            if (parent) {
-                              parent.style.display = 'none';
-                            }
-                          }}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
                           <div className="absolute bottom-0 left-0 right-0 p-3 text-xs">
@@ -283,7 +266,7 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
                       <div className="relative bg-slate-900 rounded-lg overflow-hidden border border-white/20 shadow-2xl">
                         <div className="aspect-[2/3] w-full relative max-h-[70vh]">
                           <img
-                            src={selectedPhoto.dataUrl}
+                            src={photos[currentPhotoIndex]?.dataUrl}
                             alt="Photo"
                             className="w-full h-full object-contain bg-slate-950"
                           />
@@ -292,26 +275,26 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
                         <div className="p-4 md:p-6 bg-slate-900 border-t border-white/10">
                           <div className="flex items-center justify-between mb-4">
                             <div className="text-slate-400 text-xs md:text-sm font-mono">
-                              <div>Photo #{selectedPhoto.id.slice(-8)}</div>
+                              <div>Photo #{photos[currentPhotoIndex]?.id.slice(-8)}</div>
                               <div className="text-slate-500 text-xs mt-1">
-                                {new Date(selectedPhoto.timestamp).toLocaleString()}
+                                {new Date(photos[currentPhotoIndex]?.timestamp).toLocaleString()}
                               </div>
                             </div>
                             <div className="text-amber-200 font-serif text-sm">
-                              {getValidPhotos().findIndex(p => p.id === selectedPhoto.id) + 1} / {getValidPhotos().length}
+                              {currentPhotoIndex + 1} / {photos.length}
                             </div>
                           </div>
 
                           <div className="flex gap-3 flex-wrap">
                             <button
-                              onClick={() => handleDownload(selectedPhoto)}
+                              onClick={() => handleDownload(photos[currentPhotoIndex])}
                               className="flex-1 bg-amber-200 text-slate-950 py-3 px-4 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-white transition-colors text-sm"
                             >
                               <Download size={16} /> Download
                             </button>
                             <button
                               onClick={() => {
-                                handleDelete(selectedPhoto.id);
+                                handleDelete(photos[currentPhotoIndex].id);
                                 setSelectedPhoto(null);
                               }}
                               className="px-4 py-3 border border-red-500/50 text-red-400 rounded-lg hover:bg-red-500/10 transition-colors flex items-center gap-2 text-sm"
@@ -322,7 +305,7 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
                         </div>
                       </div>
 
-                      {getValidPhotos().length > 1 && (
+                      {photos.length > 1 && (
                         <>
                           <button
                             onClick={goToPrevPhoto}
@@ -340,18 +323,18 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
                       )}
                     </div>
 
-                    {getValidPhotos().length > 1 && (
+                    {photos.length > 1 && (
                       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 overflow-x-auto max-w-full px-4">
-                        {getValidPhotos().map((photo) => (
+                        {photos.map((photo, index) => (
                           <button
                             key={photo.id}
                             onClick={(e) => {
                               e.stopPropagation();
+                              setCurrentPhotoIndex(index);
                               setSelectedPhoto(photo);
-                              setCurrentPhotoIndex(photos.indexOf(photo));
                             }}
                             className={`flex-shrink-0 w-12 h-16 md:w-16 md:h-24 rounded border-2 transition-all overflow-hidden ${
-                              photo.id === selectedPhoto?.id
+                              index === currentPhotoIndex
                                 ? 'border-amber-200 opacity-100 scale-110'
                                 : 'border-white/30 opacity-50 hover:opacity-75'
                             }`}
