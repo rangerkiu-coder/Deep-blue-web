@@ -55,6 +55,8 @@ const CameraCapture: React.FC<Props> = ({ layout, onComplete }) => {
     };
   }, []);
 
+  const startCountdownRef = useRef<() => void>();
+
   const capturePhoto = useCallback(() => {
     if (videoRef.current && canvasRef.current && !isCapturingRef.current) {
       isCapturingRef.current = true;
@@ -91,13 +93,16 @@ const CameraCapture: React.FC<Props> = ({ layout, onComplete }) => {
 
         setCapturedPhotos(prev => {
           const newPhotos = [...prev, dataUrl];
-          isCapturingRef.current = false;
 
-          if (newPhotos.length >= targetCount) {
-            setTimeout(() => onComplete(newPhotos), 1000);
-          } else {
-            setTimeout(() => startCountdown(), 1500);
-          }
+          setTimeout(() => {
+            isCapturingRef.current = false;
+            if (newPhotos.length >= targetCount) {
+              setTimeout(() => onComplete(newPhotos), 1000);
+            } else if (startCountdownRef.current) {
+              setTimeout(() => startCountdownRef.current!(), 1500);
+            }
+          }, 0);
+
           return newPhotos;
         });
       } else {
@@ -128,6 +133,8 @@ const CameraCapture: React.FC<Props> = ({ layout, onComplete }) => {
       }
     }, 1000);
   }, [capturePhoto]);
+
+  startCountdownRef.current = startCountdown;
 
   const handleStartSession = () => {
     startCountdown();
