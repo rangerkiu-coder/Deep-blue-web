@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Phone, X, Delete } from 'lucide-react';
 
 interface Props {
@@ -10,21 +10,90 @@ interface Props {
 
 const PhoneInputModal: React.FC<Props> = ({ onSubmit, onSkip, onCancel, isSubmitting }) => {
   const [phoneNumber, setPhoneNumber] = useState<string>('');
+  const [timeLeft, setTimeLeft] = useState<number>(60);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownRef = useRef<NodeJS.Timeout | null>(null);
+
+  const resetTimeout = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    if (countdownRef.current) {
+      clearTimeout(countdownRef.current);
+    }
+    setTimeLeft(60);
+
+    timeoutRef.current = setTimeout(() => {
+      onSkip();
+    }, 60000);
+
+    const startTime = Date.now();
+    const updateCountdown = () => {
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, Math.ceil((60000 - elapsed) / 1000));
+      setTimeLeft(remaining);
+
+      if (remaining > 0) {
+        countdownRef.current = setTimeout(updateCountdown, 1000);
+      }
+    };
+    updateCountdown();
+  };
+
+  useEffect(() => {
+    resetTimeout();
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      if (countdownRef.current) {
+        clearTimeout(countdownRef.current);
+      }
+    };
+  }, []);
 
   const handleNumberClick = (digit: string) => {
     if (phoneNumber.length < 15) {
       setPhoneNumber(phoneNumber + digit);
     }
+    resetTimeout();
   };
 
   const handleBackspace = () => {
     setPhoneNumber(phoneNumber.slice(0, -1));
+    resetTimeout();
   };
 
   const handleSubmit = () => {
     if (phoneNumber.length >= 10) {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      if (countdownRef.current) {
+        clearTimeout(countdownRef.current);
+      }
       onSubmit(phoneNumber);
     }
+  };
+
+  const handleSkip = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    if (countdownRef.current) {
+      clearTimeout(countdownRef.current);
+    }
+    onSkip();
+  };
+
+  const handleCancel = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    if (countdownRef.current) {
+      clearTimeout(countdownRef.current);
+    }
+    onCancel();
   };
 
   const formatPhoneNumber = (number: string) => {
@@ -58,7 +127,7 @@ const PhoneInputModal: React.FC<Props> = ({ onSubmit, onSkip, onCancel, isSubmit
             </div>
           </div>
           <button
-            onClick={onCancel}
+            onClick={handleCancel}
             className="text-slate-400 hover:text-white transition-colors"
           >
             <X size={20} />
@@ -115,7 +184,7 @@ const PhoneInputModal: React.FC<Props> = ({ onSubmit, onSkip, onCancel, isSubmit
               {isSubmitting ? 'Saving...' : 'Save & Send'}
             </button>
             <button
-              onClick={onSkip}
+              onClick={handleSkip}
               disabled={isSubmitting}
               className="w-full bg-transparent border border-amber-200/30 text-amber-100 py-3 rounded font-serif hover:bg-amber-200/5 transition-colors disabled:opacity-50"
             >
@@ -123,9 +192,15 @@ const PhoneInputModal: React.FC<Props> = ({ onSubmit, onSkip, onCancel, isSubmit
             </button>
           </div>
 
-          <p className="text-center text-slate-500 text-xs mt-4">
-            We'll send a digital copy to this number
-          </p>
+          <div className="mt-4 space-y-2">
+            <p className="text-center text-slate-500 text-xs">
+              We'll send a digital copy to this number
+            </p>
+            <p className="text-center text-slate-600 text-xs flex items-center justify-center gap-2">
+              <span>Auto-closing in</span>
+              <span className="text-amber-200 font-mono font-semibold">{timeLeft}s</span>
+            </p>
+          </div>
         </div>
       </div>
     </div>
