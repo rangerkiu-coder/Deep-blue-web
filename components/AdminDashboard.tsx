@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { getGallery, deletePhotoFromGallery, clearGallery, SavedPhoto, GalleryResult } from '../utils/storage';
 import { ArrowLeft, Trash2, Download, Image as ImageIcon, Lock, Sticker as StickerIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { StickerUpload } from './StickerUpload';
@@ -20,6 +20,40 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [totalPhotos, setTotalPhotos] = useState(0);
+
+  const photoModalTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const startPhotoModalTimeout = () => {
+    if (photoModalTimeoutRef.current) {
+      clearTimeout(photoModalTimeoutRef.current);
+    }
+    photoModalTimeoutRef.current = setTimeout(() => {
+      setSelectedPhoto(null);
+    }, 10000);
+  };
+
+  const clearPhotoModalTimeout = () => {
+    if (photoModalTimeoutRef.current) {
+      clearTimeout(photoModalTimeoutRef.current);
+      photoModalTimeoutRef.current = null;
+    }
+  };
+
+  const resetPhotoModalTimeout = () => {
+    startPhotoModalTimeout();
+  };
+
+  useEffect(() => {
+    if (selectedPhoto) {
+      startPhotoModalTimeout();
+    } else {
+      clearPhotoModalTimeout();
+    }
+
+    return () => {
+      clearPhotoModalTimeout();
+    };
+  }, [selectedPhoto]);
 
   // Authentication Logic
   const handlePinSubmit = (e: React.FormEvent) => {
@@ -111,10 +145,12 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
 
   const goToPrevPhoto = () => {
     setCurrentPhotoIndex((prev) => (prev > 0 ? prev - 1 : photos.length - 1));
+    resetPhotoModalTimeout();
   };
 
   const goToNextPhoto = () => {
     setCurrentPhotoIndex((prev) => (prev < photos.length - 1 ? prev + 1 : 0));
+    resetPhotoModalTimeout();
   };
 
   if (!isAuthenticated) {
@@ -307,9 +343,20 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
                 </div>
 
                 {selectedPhoto && (
-                  <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4" onClick={() => setSelectedPhoto(null)}>
+                  <div
+                    className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4"
+                    onClick={() => {
+                      clearPhotoModalTimeout();
+                      setSelectedPhoto(null);
+                    }}
+                    onMouseMove={resetPhotoModalTimeout}
+                    onKeyDown={resetPhotoModalTimeout}
+                  >
                     <button
-                      onClick={() => setSelectedPhoto(null)}
+                      onClick={() => {
+                        clearPhotoModalTimeout();
+                        setSelectedPhoto(null);
+                      }}
                       className="absolute top-4 right-4 z-10 bg-slate-900/80 hover:bg-slate-800 text-white p-3 rounded-full border border-white/10 shadow-lg transition-all"
                     >
                       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -347,13 +394,17 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
 
                           <div className="flex gap-3 flex-wrap">
                             <button
-                              onClick={() => handleDownload(photos[currentPhotoIndex])}
+                              onClick={() => {
+                                handleDownload(photos[currentPhotoIndex]);
+                                resetPhotoModalTimeout();
+                              }}
                               className="flex-1 bg-amber-200 text-slate-950 py-3 px-4 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-white transition-colors text-sm"
                             >
                               <Download size={16} /> Download
                             </button>
                             <button
                               onClick={() => {
+                                clearPhotoModalTimeout();
                                 handleDelete(photos[currentPhotoIndex].id);
                                 setSelectedPhoto(null);
                               }}
@@ -392,6 +443,7 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
                               e.stopPropagation();
                               setCurrentPhotoIndex(index);
                               setSelectedPhoto(photo);
+                              resetPhotoModalTimeout();
                             }}
                             className={`flex-shrink-0 w-12 h-16 md:w-16 md:h-24 rounded border-2 transition-all overflow-hidden ${
                               index === currentPhotoIndex
