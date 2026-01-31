@@ -4,6 +4,7 @@ import { generateComposite } from '../utils/canvasUtils';
 import { savePhotoToGallery } from '../utils/storage';
 import { Save, Palette, Image as ImageIcon, Sliders, X, RotateCw } from 'lucide-react';
 import { getCustomStickers, CustomSticker } from '../utils/stickerStorage';
+import PhoneInputModal from './PhoneInputModal';
 
 interface Props {
   photos: string[];
@@ -30,10 +31,12 @@ const PhotoEditor: React.FC<Props> = ({ photos, layout, onRestart }) => {
   const [isExporting, setIsExporting] = useState(false);
   const [activeTab, setActiveTab] = useState<'paper' | 'stickers'>('stickers');
   const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
+  const [showPhoneInput, setShowPhoneInput] = useState(false);
   const [previewScale, setPreviewScale] = useState<number>(56);
   const [stickers, setStickers] = useState<Sticker[]>([]);
   const [activeStickerId, setActiveStickerId] = useState<string | null>(null);
   const [customStickers, setCustomStickers] = useState<CustomSticker[]>([]);
+  const [pendingPhotoDataUrl, setPendingPhotoDataUrl] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef<{
@@ -149,16 +152,53 @@ const PhotoEditor: React.FC<Props> = ({ photos, layout, onRestart }) => {
     setIsExporting(true);
     try {
       const dataUrl = await generateComposite(layout, photos, stickers, frameColor);
-
-      await savePhotoToGallery(dataUrl);
-
-      setShowSaveConfirmation(true);
+      setPendingPhotoDataUrl(dataUrl);
+      setShowPhoneInput(true);
     } catch (err) {
       console.error(err);
       alert("Something went wrong while creating your masterpiece.");
     } finally {
       setIsExporting(false);
     }
+  };
+
+  const handlePhoneSubmit = async (phoneNumber: string) => {
+    if (!pendingPhotoDataUrl) return;
+
+    setIsExporting(true);
+    try {
+      await savePhotoToGallery(pendingPhotoDataUrl, phoneNumber);
+      setShowPhoneInput(false);
+      setShowSaveConfirmation(true);
+      setPendingPhotoDataUrl(null);
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong while saving your photo.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleSkipPhone = async () => {
+    if (!pendingPhotoDataUrl) return;
+
+    setIsExporting(true);
+    try {
+      await savePhotoToGallery(pendingPhotoDataUrl);
+      setShowPhoneInput(false);
+      setShowSaveConfirmation(true);
+      setPendingPhotoDataUrl(null);
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong while saving your photo.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleCancelPhoneInput = () => {
+    setShowPhoneInput(false);
+    setPendingPhotoDataUrl(null);
   };
 
   return (
@@ -406,6 +446,16 @@ const PhotoEditor: React.FC<Props> = ({ photos, layout, onRestart }) => {
            </button>
         </div>
       </div>
+
+      {/* Phone Input Modal */}
+      {showPhoneInput && (
+        <PhoneInputModal
+          onSubmit={handlePhoneSubmit}
+          onSkip={handleSkipPhone}
+          onCancel={handleCancelPhoneInput}
+          isSubmitting={isExporting}
+        />
+      )}
 
       {/* Save Confirmation Modal */}
       {showSaveConfirmation && (

@@ -20,7 +20,7 @@ const dataUrlToBlob = (dataUrl: string): Blob => {
   return new Blob([u8arr], { type: mime });
 };
 
-export const savePhotoToGallery = async (dataUrl: string): Promise<void> => {
+export const savePhotoToGallery = async (dataUrl: string, phoneNumber?: string): Promise<void> => {
   try {
     const photoId = crypto.randomUUID();
     const fullFileName = `${photoId}-full.jpg`;
@@ -60,7 +60,8 @@ export const savePhotoToGallery = async (dataUrl: string): Promise<void> => {
       .insert({
         id: photoId,
         storage_path: fullStoragePath,
-        preview_path: previewStoragePath
+        preview_path: previewStoragePath,
+        phone_number: phoneNumber || null
       });
 
     if (dbError) {

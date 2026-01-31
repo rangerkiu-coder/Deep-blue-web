@@ -101,8 +101,8 @@ export const generateComposite = async (
     ctx.fillRect(strip1X, marginY, stripWidth, stripHeight);
     ctx.fillRect(strip2X, marginY, stripWidth, stripHeight);
 
-    // Side padding: 20px (per side of the photo)
-    const paddingX = 20; 
+    // Side padding: 10px (per side of the photo)
+    const paddingX = 10;
     const photoW = stripWidth - (paddingX * 2);
     
     // Classic 4:3 Aspect Ratio for photos
