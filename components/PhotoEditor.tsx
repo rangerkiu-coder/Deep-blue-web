@@ -37,8 +37,11 @@ const PhotoEditor: React.FC<Props> = ({ photos, layout, onRestart }) => {
   const [activeStickerId, setActiveStickerId] = useState<string | null>(null);
   const [customStickers, setCustomStickers] = useState<CustomSticker[]>([]);
   const [pendingPhotoDataUrl, setPendingPhotoDataUrl] = useState<string | null>(null);
+  const [confirmationTimeLeft, setConfirmationTimeLeft] = useState<number>(15);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const confirmationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const confirmationCountdownRef = useRef<NodeJS.Timeout | null>(null);
   const draggingRef = useRef<{
     id: string;
     mode: 'move' | 'transform';
@@ -52,6 +55,9 @@ const PhotoEditor: React.FC<Props> = ({ photos, layout, onRestart }) => {
 
   useEffect(() => {
     loadCustomStickers();
+    return () => {
+      clearConfirmationTimers();
+    };
   }, []);
 
   const loadCustomStickers = async () => {
@@ -162,6 +168,41 @@ const PhotoEditor: React.FC<Props> = ({ photos, layout, onRestart }) => {
     }
   };
 
+  const startConfirmationCountdown = () => {
+    if (confirmationTimeoutRef.current) {
+      clearTimeout(confirmationTimeoutRef.current);
+    }
+    if (confirmationCountdownRef.current) {
+      clearTimeout(confirmationCountdownRef.current);
+    }
+    setConfirmationTimeLeft(15);
+
+    confirmationTimeoutRef.current = setTimeout(() => {
+      onRestart();
+    }, 15000);
+
+    const startTime = Date.now();
+    const updateCountdown = () => {
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, Math.ceil((15000 - elapsed) / 1000));
+      setConfirmationTimeLeft(remaining);
+
+      if (remaining > 0) {
+        confirmationCountdownRef.current = setTimeout(updateCountdown, 1000);
+      }
+    };
+    updateCountdown();
+  };
+
+  const clearConfirmationTimers = () => {
+    if (confirmationTimeoutRef.current) {
+      clearTimeout(confirmationTimeoutRef.current);
+    }
+    if (confirmationCountdownRef.current) {
+      clearTimeout(confirmationCountdownRef.current);
+    }
+  };
+
   const handlePhoneSubmit = async (phoneNumber: string) => {
     if (!pendingPhotoDataUrl) return;
 
@@ -171,6 +212,7 @@ const PhotoEditor: React.FC<Props> = ({ photos, layout, onRestart }) => {
       setShowPhoneInput(false);
       setShowSaveConfirmation(true);
       setPendingPhotoDataUrl(null);
+      startConfirmationCountdown();
     } catch (err) {
       console.error(err);
       alert("Something went wrong while saving your photo.");
@@ -188,6 +230,7 @@ const PhotoEditor: React.FC<Props> = ({ photos, layout, onRestart }) => {
       setShowPhoneInput(false);
       setShowSaveConfirmation(true);
       setPendingPhotoDataUrl(null);
+      startConfirmationCountdown();
     } catch (err) {
       console.error(err);
       alert("Something went wrong while saving your photo.");
@@ -473,18 +516,29 @@ const PhotoEditor: React.FC<Props> = ({ photos, layout, onRestart }) => {
 
             <div className="flex gap-3">
               <button
-                onClick={() => setShowSaveConfirmation(false)}
+                onClick={() => {
+                  clearConfirmationTimers();
+                  setShowSaveConfirmation(false);
+                }}
                 className="flex-1 bg-transparent border border-amber-200/30 text-amber-100 py-3 rounded font-serif hover:bg-amber-200/5 transition-colors"
               >
                 Continue
               </button>
               <button
-                onClick={onRestart}
+                onClick={() => {
+                  clearConfirmationTimers();
+                  onRestart();
+                }}
                 className="flex-1 bg-amber-200 text-slate-900 py-3 rounded font-serif font-bold hover:bg-white hover:shadow-[0_0_20px_rgba(253,230,138,0.3)] transition-all"
               >
                 Back to Home
               </button>
             </div>
+
+            <p className="text-center text-slate-600 text-xs mt-4 flex items-center justify-center gap-2">
+              <span>Returning to home in</span>
+              <span className="text-amber-200 font-mono font-semibold">{confirmationTimeLeft}s</span>
+            </p>
           </div>
         </div>
       )}
