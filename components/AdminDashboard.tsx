@@ -22,6 +22,7 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
   const [totalPhotos, setTotalPhotos] = useState(0);
 
   const photoModalTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const thumbnailScrollRef = useRef<HTMLDivElement>(null);
 
   const startPhotoModalTimeout = () => {
     if (photoModalTimeoutRef.current) {
@@ -143,6 +144,34 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
     }
   };
 
+  const scrollThumbnails = (direction: 'left' | 'right') => {
+    if (thumbnailScrollRef.current) {
+      const scrollAmount = 200;
+      thumbnailScrollRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  const scrollToCurrentThumbnail = () => {
+    if (thumbnailScrollRef.current) {
+      const thumbnailWidth = 64;
+      const gap = 8;
+      const scrollPosition = currentPhotoIndex * (thumbnailWidth + gap);
+      thumbnailScrollRef.current.scrollTo({
+        left: scrollPosition - thumbnailScrollRef.current.clientWidth / 2 + thumbnailWidth / 2,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (selectedPhoto) {
+      scrollToCurrentThumbnail();
+    }
+  }, [currentPhotoIndex, selectedPhoto]);
+
   const goToPrevPhoto = () => {
     setCurrentPhotoIndex((prev) => (prev > 0 ? prev - 1 : photos.length - 1));
     resetPhotoModalTimeout();
@@ -190,6 +219,11 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
 
   return (
     <div className="min-h-screen w-full bg-slate-950 text-slate-200 flex flex-col font-sans">
+      <style>{`
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
       {/* Header */}
       <div className="bg-slate-900 border-b border-white/10 sticky top-0 z-50">
         <div className="p-4 md:p-6 flex justify-between items-center">
@@ -435,29 +469,57 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
                     </div>
 
                     {photos.length > 1 && (
-                      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 overflow-x-auto max-w-full px-4">
-                        {photos.map((photo, index) => (
-                          <button
-                            key={photo.id}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setCurrentPhotoIndex(index);
-                              setSelectedPhoto(photo);
-                              resetPhotoModalTimeout();
-                            }}
-                            className={`flex-shrink-0 w-12 h-16 md:w-16 md:h-24 rounded border-2 transition-all overflow-hidden ${
-                              index === currentPhotoIndex
-                                ? 'border-amber-200 opacity-100 scale-110'
-                                : 'border-white/30 opacity-50 hover:opacity-75'
-                            }`}
-                          >
-                            <img
-                              src={photo.dataUrl}
-                              alt={`Thumbnail`}
-                              className="w-full h-full object-cover"
-                            />
-                          </button>
-                        ))}
+                      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 max-w-[90%]">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            scrollThumbnails('left');
+                            resetPhotoModalTimeout();
+                          }}
+                          className="flex-shrink-0 bg-slate-900/90 hover:bg-slate-800 text-amber-200 p-2 rounded-full border border-white/20 transition-all"
+                        >
+                          <ChevronLeft size={20} />
+                        </button>
+
+                        <div
+                          ref={thumbnailScrollRef}
+                          className="flex gap-2 overflow-x-auto scrollbar-hide"
+                          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                        >
+                          {photos.map((photo, index) => (
+                            <button
+                              key={photo.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCurrentPhotoIndex(index);
+                                setSelectedPhoto(photo);
+                                resetPhotoModalTimeout();
+                              }}
+                              className={`flex-shrink-0 w-12 h-16 md:w-16 md:h-24 rounded border-2 transition-all overflow-hidden ${
+                                index === currentPhotoIndex
+                                  ? 'border-amber-200 opacity-100 scale-110'
+                                  : 'border-white/30 opacity-50 hover:opacity-75'
+                              }`}
+                            >
+                              <img
+                                src={photo.dataUrl}
+                                alt={`Thumbnail`}
+                                className="w-full h-full object-cover"
+                              />
+                            </button>
+                          ))}
+                        </div>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            scrollThumbnails('right');
+                            resetPhotoModalTimeout();
+                          }}
+                          className="flex-shrink-0 bg-slate-900/90 hover:bg-slate-800 text-amber-200 p-2 rounded-full border border-white/20 transition-all"
+                        >
+                          <ChevronRight size={20} />
+                        </button>
                       </div>
                     )}
                   </div>
