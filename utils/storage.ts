@@ -6,6 +6,7 @@ export interface SavedPhoto {
   timestamp: number;
   dataUrl: string;
   fullSizeUrl?: string;
+  phoneNumber?: string;
 }
 
 const dataUrlToBlob = (dataUrl: string): Blob => {
@@ -111,7 +112,7 @@ export const getGallery = async (page: number = 1, pageSize: number = 30): Promi
       getTotalPhotoCount(),
       supabase
         .from('photos')
-        .select('id, storage_path, preview_path, created_at')
+        .select('id, storage_path, preview_path, created_at, phone_number')
         .order('created_at', { ascending: false })
         .range(offset, offset + pageSize - 1)
     ]);
@@ -196,7 +197,8 @@ export const getGallery = async (page: number = 1, pageSize: number = 30): Promi
         id: photo.id,
         timestamp: new Date(photo.created_at).getTime(),
         dataUrl,
-        fullSizeUrl
+        fullSizeUrl,
+        phoneNumber: photo.phone_number || undefined
       };
     });
 

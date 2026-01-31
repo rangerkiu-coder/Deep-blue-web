@@ -254,6 +254,11 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
                             <div className="text-slate-400 text-xs">
                               {new Date(photo.timestamp).toLocaleDateString()}
                             </div>
+                            {photo.phoneNumber && (
+                              <div className="text-amber-100 text-xs mt-1">
+                                📱 {photo.phoneNumber}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -329,6 +334,11 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
                               <div className="text-slate-500 text-xs mt-1">
                                 {new Date(photos[currentPhotoIndex]?.timestamp).toLocaleString()}
                               </div>
+                              {photos[currentPhotoIndex]?.phoneNumber && (
+                                <div className="text-amber-200 text-xs mt-1 flex items-center gap-1">
+                                  <span className="text-slate-500">Phone:</span> {photos[currentPhotoIndex].phoneNumber}
+                                </div>
+                              )}
                             </div>
                             <div className="text-amber-200 font-serif text-sm">
                               {currentPhotoIndex + 1} / {photos.length}

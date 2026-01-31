@@ -45,7 +45,7 @@ const PhoneInputModal: React.FC<Props> = ({ onSubmit, onSkip, onCancel, isSubmit
   ];
 
   return (
-    <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
       <div className="bg-slate-900 border border-amber-200/20 rounded-lg shadow-2xl max-w-md w-full">
         <div className="p-6 border-b border-white/10 flex justify-between items-center">
           <div className="flex items-center gap-3">
