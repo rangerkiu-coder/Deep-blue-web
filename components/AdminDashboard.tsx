@@ -242,6 +242,18 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
                  <span className="hidden sm:inline">{totalPhotos} Photos Stored</span>
                  <span className="sm:hidden">{totalPhotos} Items</span>
                  <button
+                    onClick={async () => {
+                      for (const photo of photos) {
+                        await handleDownload(photo);
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                      }
+                    }}
+                    disabled={photos.length === 0}
+                    className="px-3 py-1.5 md:px-4 md:py-2 bg-amber-500/20 border-2 border-amber-500 text-amber-200 font-semibold rounded hover:bg-amber-500/30 hover:border-amber-400 active:scale-95 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                 >
+                    <Download className="w-3.5 h-3.5 md:w-4 md:h-4" /> <span className="hidden sm:inline">Download All</span><span className="sm:hidden">Download</span>
+                 </button>
+                 <button
                     onClick={handleClearAll}
                     className="px-3 py-1.5 md:px-4 md:py-2 bg-red-500/20 border-2 border-red-500 text-red-300 font-semibold rounded hover:bg-red-500/30 hover:border-red-400 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
                  >
