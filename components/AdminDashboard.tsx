@@ -50,6 +50,7 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
   const [showGallery, setShowGallery] = useState(false);
   const [galleryPhotos, setGalleryPhotos] = useState<SavedPhoto[]>([]);
   const [loadingGallery, setLoadingGallery] = useState(false);
+  const [filterWithPhone, setFilterWithPhone] = useState(true);
 
   const photoModalTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const thumbnailScrollRef = useRef<HTMLDivElement>(null);
@@ -262,8 +263,11 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
   const loadGalleryForWhatsApp = async () => {
     try {
       setLoadingGallery(true);
-      const result = await getGallery(1, 50);
-      setGalleryPhotos(result.photos);
+      const result = await getGallery(1, 100);
+      const filteredPhotos = filterWithPhone
+        ? result.photos.filter(p => p.phoneNumber)
+        : result.photos;
+      setGalleryPhotos(filteredPhotos);
     } catch (err) {
       console.error('Error loading gallery:', err);
       setError('Failed to load gallery');
@@ -329,6 +333,9 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
 
   const selectFromGallery = (photo: SavedPhoto) => {
     setSelectedImage(photo.fullSizeUrl || photo.dataUrl);
+    if (photo.phoneNumber) {
+      setRecipientNumber(photo.phoneNumber);
+    }
     setShowGallery(false);
   };
 
@@ -880,7 +887,7 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
                       </div>
 
                       {showGallery && (
-                        <div className="mt-4 p-4 bg-slate-800 rounded-lg border border-amber-200/20 max-h-96 overflow-y-auto">
+                        <div className="mt-4 p-4 bg-slate-800 rounded-lg border border-amber-200/20 max-h-[500px] overflow-y-auto">
                           <div className="flex items-center justify-between mb-3">
                             <h4 className="font-semibold text-amber-100">Select from Gallery</h4>
                             <button
@@ -890,23 +897,67 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
                               <XCircle className="w-5 h-5" />
                             </button>
                           </div>
+                          <div className="mb-3 pb-3 border-b border-amber-200/20 space-y-2">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={filterWithPhone}
+                                onChange={async (e) => {
+                                  setFilterWithPhone(e.target.checked);
+                                  setLoadingGallery(true);
+                                  try {
+                                    const result = await getGallery(1, 100);
+                                    const filteredPhotos = e.target.checked
+                                      ? result.photos.filter(p => p.phoneNumber)
+                                      : result.photos;
+                                    setGalleryPhotos(filteredPhotos);
+                                  } catch (err) {
+                                    console.error('Error loading gallery:', err);
+                                  } finally {
+                                    setLoadingGallery(false);
+                                  }
+                                }}
+                                className="w-4 h-4 rounded border-slate-600 text-amber-500 focus:ring-amber-500"
+                              />
+                              <span className="text-sm text-slate-300">Only show photos with phone numbers</span>
+                            </label>
+                            <div className="text-xs text-slate-500">
+                              Showing {galleryPhotos.length} photo{galleryPhotos.length !== 1 ? 's' : ''}
+                            </div>
+                          </div>
                           {loadingGallery ? (
                             <div className="text-center py-4 text-slate-400">Loading gallery...</div>
                           ) : galleryPhotos.length === 0 ? (
-                            <div className="text-center py-4 text-slate-400">No photos in gallery</div>
+                            <div className="text-center py-4 text-slate-400">
+                              {filterWithPhone ? 'No photos with phone numbers found' : 'No photos in gallery'}
+                            </div>
                           ) : (
                             <div className="grid grid-cols-3 gap-2">
                               {galleryPhotos.map((photo) => (
                                 <button
                                   key={photo.id}
                                   onClick={() => selectFromGallery(photo)}
-                                  className="aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-amber-500 transition-all"
+                                  className="relative aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-amber-500 transition-all group"
                                 >
                                   <img
                                     src={photo.dataUrl}
                                     alt="Gallery"
                                     className="w-full h-full object-cover"
                                   />
+                                  {photo.phoneNumber && (
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <div className="absolute bottom-0 left-0 right-0 p-2">
+                                        <div className="text-xs text-white font-semibold truncate">
+                                          {photo.phoneNumber}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {photo.phoneNumber && (
+                                    <div className="absolute top-1 right-1 bg-green-600 text-white text-xs px-1.5 py-0.5 rounded">
+                                      📱
+                                    </div>
+                                  )}
                                 </button>
                               ))}
                             </div>
