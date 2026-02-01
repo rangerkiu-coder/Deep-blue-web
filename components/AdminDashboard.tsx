@@ -413,6 +413,22 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
                     <div className="relative w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
                       <div className="relative bg-slate-900 rounded-lg overflow-hidden border border-white/20 shadow-2xl">
                         <div className="p-4 md:p-6 bg-slate-900 border-b border-white/10">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="text-slate-400 text-xs md:text-sm font-mono">
+                              <div>Photo #{photos[currentPhotoIndex]?.id.slice(-8)}</div>
+                              <div className="text-slate-500 text-xs mt-1">
+                                {new Date(photos[currentPhotoIndex]?.timestamp).toLocaleString()}
+                              </div>
+                              {photos[currentPhotoIndex]?.phoneNumber && (
+                                <div className="text-amber-200 text-xs mt-1 flex items-center gap-1">
+                                  <span className="text-slate-500">Phone:</span> {photos[currentPhotoIndex].phoneNumber}
+                                </div>
+                              )}
+                            </div>
+                            <div className="text-amber-200 font-serif text-sm">
+                              {currentPhotoIndex + 1} / {photos.length}
+                            </div>
+                          </div>
                           <div className="flex gap-3 flex-wrap">
                             <button
                               onClick={() => {
@@ -442,25 +458,6 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
                             alt="Photo"
                             className="w-full h-full object-contain bg-slate-950"
                           />
-                        </div>
-
-                        <div className="p-4 md:p-6 bg-slate-900 border-t border-white/10">
-                          <div className="flex items-center justify-between">
-                            <div className="text-slate-400 text-xs md:text-sm font-mono">
-                              <div>Photo #{photos[currentPhotoIndex]?.id.slice(-8)}</div>
-                              <div className="text-slate-500 text-xs mt-1">
-                                {new Date(photos[currentPhotoIndex]?.timestamp).toLocaleString()}
-                              </div>
-                              {photos[currentPhotoIndex]?.phoneNumber && (
-                                <div className="text-amber-200 text-xs mt-1 flex items-center gap-1">
-                                  <span className="text-slate-500">Phone:</span> {photos[currentPhotoIndex].phoneNumber}
-                                </div>
-                              )}
-                            </div>
-                            <div className="text-amber-200 font-serif text-sm">
-                              {currentPhotoIndex + 1} / {photos.length}
-                            </div>
-                          </div>
                         </div>
                       </div>
 
