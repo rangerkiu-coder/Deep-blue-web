@@ -23,10 +23,10 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    const adminPinHeader = req.headers.get("X-Admin-Pin");
+    if (adminPinHeader !== "1234") {
       return new Response(
-        JSON.stringify({ error: "Missing authorization header" }),
+        JSON.stringify({ error: "Invalid admin PIN" }),
         {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -48,36 +48,6 @@ Deno.serve(async (req: Request) => {
       }
     });
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-
-    if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    const { data: adminUser, error: adminError } = await supabase
-      .from("admin_users")
-      .select("is_admin, is_active")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (adminError || !adminUser || !adminUser.is_admin || !adminUser.is_active) {
-      return new Response(
-        JSON.stringify({ error: "Access denied. Admin privileges required." }),
-        {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    // Hardcoded WhatsApp API credentials
     const adminConfig = {
       api_key: "GcCqTlEjxghF7MHtaxCwBeN1NX3ud7",
       sender_number: "601116366799"
@@ -160,7 +130,7 @@ Deno.serve(async (req: Request) => {
     const whatsappResult = await whatsappResponse.json();
 
     const logEntry = {
-      admin_id: user.id,
+      admin_id: "00000000-0000-0000-0000-000000000000",
       recipient_number: recipientNumber,
       image_url: uploadedImageUrl,
       caption: caption,

@@ -217,13 +217,9 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
 
   const loadSentMessages = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
       const { data, error } = await supabase
         .from('whatsapp_sent_messages')
         .select('*')
-        .eq('admin_id', user.id)
         .order('sent_at', { ascending: false })
         .limit(20);
 
@@ -286,15 +282,12 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
         return;
       }
 
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Not authenticated');
-
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-whatsapp-image`,
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${session.access_token}`,
+            'X-Admin-Pin': '1234',
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
