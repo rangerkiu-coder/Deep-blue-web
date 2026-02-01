@@ -876,14 +876,22 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-slate-300 mb-2">
-                        Caption (Optional)
-                      </label>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="block text-sm font-medium text-slate-300">
+                          Caption (Optional)
+                        </label>
+                        <button
+                          onClick={() => setCaption("Hey! 😄🎉\nHere's your strip Photo Booth pictures from Wonderpark 📸✨\nHope you had fun and love the memories! 💖\nEnjoy & see you again!")}
+                          className="text-xs px-3 py-1 bg-amber-500/20 border border-amber-500/50 text-amber-200 rounded hover:bg-amber-500/30 transition-colors"
+                        >
+                          Use Preset
+                        </button>
+                      </div>
                       <textarea
                         value={caption}
                         onChange={(e) => setCaption(e.target.value)}
                         className="w-full px-4 py-2 bg-slate-950 border border-slate-700 text-white rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                        rows={3}
+                        rows={5}
                         placeholder="Enter caption..."
                       />
                     </div>
