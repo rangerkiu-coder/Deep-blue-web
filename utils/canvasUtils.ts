@@ -80,29 +80,29 @@ export const generateComposite = async (
     }
 
   } else if (layout === 'strips') {
-    // Edge-to-edge printing style
-    const marginX = 0; 
-    const marginY = 0; 
-    
-    // Seamless strips (no gap between the two 2x6 layouts on the 4x6 paper)
-    const gapBetweenStrips = 0;
-    
+    // Printer-safe margins (0.25 inch = 75px at 300 DPI)
+    const marginX = 75;
+    const marginY = 75;
+
+    // Small gap between the two strips
+    const gapBetweenStrips = 20;
+
     const totalW = canvas.width - (marginX * 2);
     const totalH = canvas.height - (marginY * 2);
-    
+
     const stripWidth = (totalW - gapBetweenStrips) / 2;
     const stripHeight = totalH;
-    
+
     const strip1X = marginX;
     const strip2X = marginX + stripWidth + gapBetweenStrips;
-    
+
     // Draw Strip Backgrounds
     ctx.fillStyle = frameColor;
     ctx.fillRect(strip1X, marginY, stripWidth, stripHeight);
     ctx.fillRect(strip2X, marginY, stripWidth, stripHeight);
 
-    // Side padding: 40px (per side of the photo) - increased for printer safe area
-    const paddingX = 40;
+    // Inner padding within each strip
+    const paddingX = 25;
     const photoW = stripWidth - (paddingX * 2);
 
     // Classic 4:3 Aspect Ratio for photos
@@ -111,7 +111,7 @@ export const generateComposite = async (
     // Calculate vertical spacing for 4 photos (limit to 4 photos max)
     const maxPhotos = 4;
     const photosToDraw = photos.slice(0, maxPhotos);
-    const gapY = 20;
+    const gapY = 25;
     const totalPhotoH = photoH * photosToDraw.length;
     const totalGapH = gapY * (photosToDraw.length - 1);
     const contentH = totalPhotoH + totalGapH;
