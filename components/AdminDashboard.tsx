@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { getGallery, deletePhotoFromGallery, clearGallery, SavedPhoto, GalleryResult } from '../utils/storage';
-import { ArrowLeft, Trash2, Download, Image as ImageIcon, Lock, Sticker as StickerIcon, ChevronLeft, ChevronRight, Send, Settings, Upload, CheckCircle, XCircle, Clock, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Trash2, Download, Image as ImageIcon, Lock, Sticker as StickerIcon, ChevronLeft, ChevronRight, Send, Upload, CheckCircle, XCircle, Clock, MessageSquare } from 'lucide-react';
 import { StickerUpload } from './StickerUpload';
 import { getCustomStickers, CustomSticker } from '../utils/stickerStorage';
 import { supabase } from '../utils/supabase';
@@ -38,7 +38,6 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
   const [totalPages, setTotalPages] = useState(0);
   const [totalPhotos, setTotalPhotos] = useState(0);
 
-  const [showConfig, setShowConfig] = useState(false);
   const [config, setConfig] = useState<ApiConfig>({ api_key: '', sender_number: '' });
   const [recipientNumber, setRecipientNumber] = useState('');
   const [caption, setCaption] = useState('');
@@ -94,7 +93,7 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
         setIsAuthenticated(true);
         loadPhotos(1);
         loadCustomStickers();
-        loadWhatsAppConfig();
+        setConfig({ api_key: 'configured', sender_number: '601116366799' });
         loadSentMessages();
     } else {
         alert('Incorrect PIN');
@@ -215,31 +214,6 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
     resetPhotoModalTimeout();
   };
 
-  const loadWhatsAppConfig = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from('whatsapp_api_config')
-        .select('*')
-        .eq('admin_id', user.id)
-        .maybeSingle();
-
-      if (error && error.code !== 'PGRST116') {
-        throw error;
-      }
-
-      if (data) {
-        setConfig(data);
-      } else {
-        setShowConfig(true);
-      }
-    } catch (err) {
-      console.error('Error loading config:', err);
-      setError('Failed to load configuration');
-    }
-  };
 
   const loadSentMessages = async () => {
     try {
@@ -276,48 +250,6 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
     }
   };
 
-  const saveConfig = async () => {
-    try {
-      setError('');
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      if (!config.api_key || !config.sender_number) {
-        setError('Please fill in all fields');
-        return;
-      }
-
-      const configData = {
-        admin_id: user.id,
-        api_key: config.api_key,
-        sender_number: config.sender_number,
-        updated_at: new Date().toISOString(),
-      };
-
-      if (config.id) {
-        const { error } = await supabase
-          .from('whatsapp_api_config')
-          .update(configData)
-          .eq('id', config.id);
-        if (error) throw error;
-      } else {
-        const { data, error } = await supabase
-          .from('whatsapp_api_config')
-          .insert(configData)
-          .select()
-          .single();
-        if (error) throw error;
-        setConfig(data);
-      }
-
-      setSuccess('Configuration saved successfully');
-      setShowConfig(false);
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err) {
-      console.error('Error saving config:', err);
-      setError('Failed to save configuration');
-    }
-  };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -789,13 +721,6 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
             <div className="max-w-6xl mx-auto">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-serif text-amber-200">WhatsApp Image Sender</h2>
-                <button
-                  onClick={() => setShowConfig(!showConfig)}
-                  className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-amber-200 border border-amber-200/30 rounded-lg transition-colors"
-                >
-                  <Settings className="w-5 h-5" />
-                  Settings
-                </button>
               </div>
 
               {error && (
@@ -810,45 +735,7 @@ const AdminDashboard: React.FC<Props> = ({ onBack }) => {
                 </div>
               )}
 
-              {showConfig && (
-                <div className="mb-6 p-6 bg-slate-800 rounded-xl border border-amber-200/20">
-                  <h3 className="text-xl font-serif text-amber-100 mb-4">API Configuration</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-300 mb-2">
-                        Ustaz AI API Key
-                      </label>
-                      <input
-                        type="password"
-                        value={config.api_key}
-                        onChange={(e) => setConfig({ ...config, api_key: e.target.value })}
-                        className="w-full px-4 py-2 bg-slate-950 border border-slate-700 text-white rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                        placeholder="Enter your Ustaz AI API key"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-300 mb-2">
-                        Sender Number (Your WhatsApp Device Number)
-                      </label>
-                      <input
-                        type="text"
-                        value={config.sender_number}
-                        onChange={(e) => setConfig({ ...config, sender_number: e.target.value })}
-                        className="w-full px-4 py-2 bg-slate-950 border border-slate-700 text-white rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                        placeholder="60123456789"
-                      />
-                    </div>
-                    <button
-                      onClick={saveConfig}
-                      className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold rounded-lg transition-colors"
-                    >
-                      Save Configuration
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {!showConfig && config.api_key && (
+              {config.api_key && (
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-4">
                     <h3 className="text-xl font-serif text-amber-100">Send Image</h3>
