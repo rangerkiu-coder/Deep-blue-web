@@ -77,21 +77,11 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { data: adminConfig, error: configError } = await supabase
-      .from("whatsapp_api_config")
-      .select("*")
-      .eq("admin_id", user.id)
-      .maybeSingle();
-
-    if (configError || !adminConfig) {
-      return new Response(
-        JSON.stringify({ error: "Admin configuration not found. Please configure your API settings first." }),
-        {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
+    // Hardcoded WhatsApp API credentials
+    const adminConfig = {
+      api_key: "GcCqTlEjxghF7MHtaxCwBeN1NX3ud7",
+      sender_number: "601116366799"
+    };
 
     const body: SendImageRequest = await req.json();
     const { recipientNumber, imageUrl, imageBase64, caption = "" } = body;
