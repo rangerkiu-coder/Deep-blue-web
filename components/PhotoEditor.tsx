@@ -292,10 +292,10 @@ const PhotoEditor: React.FC<Props> = ({ photos, layout, onRestart }) => {
               )}
               
               {layout === 'strips' && (
-                <div className="w-full h-full flex gap-[1.67%] justify-center px-[6.25%] py-[4.17%] items-center">
+                <div className="w-full h-full flex gap-[1%] justify-center px-[3%] py-[2%] items-center">
                   {[0, 1].map(stripIdx => {
                     return (
-                      <div key={stripIdx} className="flex-1 h-full flex flex-col py-[5.45%] px-[4.85%] gap-[1.52%]" style={{ backgroundColor: frameColor }}>
+                      <div key={stripIdx} className="flex-1 h-full flex flex-col py-[3%] px-[3%] gap-[1%]" style={{ backgroundColor: frameColor }}>
                         {photos.slice(0, 4).map((src, i) => (
                           <div key={`${stripIdx}-${i}`} className="w-full relative overflow-hidden pointer-events-none" style={{ aspectRatio: '4/3' }}>
                             <img src={src} className="absolute inset-0 w-full h-full object-cover" alt="strip" />
