@@ -97,21 +97,21 @@ export const generateComposite = async (
     const strip2X = marginX + stripWidth + gapBetweenStrips;
     
     // Draw Strip Backgrounds
-    ctx.fillStyle = frameColor; 
+    ctx.fillStyle = frameColor;
     ctx.fillRect(strip1X, marginY, stripWidth, stripHeight);
     ctx.fillRect(strip2X, marginY, stripWidth, stripHeight);
 
-    // Side padding: 10px (per side of the photo)
-    const paddingX = 10;
+    // Side padding: 40px (per side of the photo) - increased for printer safe area
+    const paddingX = 40;
     const photoW = stripWidth - (paddingX * 2);
-    
+
     // Classic 4:3 Aspect Ratio for photos
     const photoH = photoW * (3/4);
 
     // Calculate vertical spacing for 4 photos (limit to 4 photos max)
     const maxPhotos = 4;
     const photosToDraw = photos.slice(0, maxPhotos);
-    const gapY = 12;
+    const gapY = 20;
     const totalPhotoH = photoH * photosToDraw.length;
     const totalGapH = gapY * (photosToDraw.length - 1);
     const contentH = totalPhotoH + totalGapH;
