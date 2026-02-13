@@ -510,7 +510,7 @@ const PhotoEditor: React.FC<Props> = ({ photos, layout, onRestart }) => {
               </div>
               <h2 className="text-2xl font-serif text-white mb-2">Photo Saved!</h2>
               <p className="text-slate-300 text-lg">
-                You can print your photo at Counter for <span className="text-amber-200 font-bold">RM 10</span>
+                Photo Print Promotion <span className="text-amber-200 font-bold">RM 5</span> get 1 picture <span className="text-amber-200 font-bold">RM 10</span> get 3 Picture.
               </p>
             </div>
 
